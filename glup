@@ -11,7 +11,7 @@
 
 ## Constants ##
 
-GLUP_VERSION="0.0.3"
+GLUP_VERSION="0.0.4"
 GLUP_FOOTER="
 Report bugs to: ~sidnym-ladrut
 home page: <https://github.com/sidnym-ladrut/geur>"
@@ -70,7 +70,8 @@ glup_globpath="$2"
 if [ ! -f "$glup_globpath" ]; then
 	printf "bad glob file at path: %s\\n" "$glup_globpath" && exit 1
 fi
-glup__hashfile="$(dirname "$(readlink -f "$0")")/.glup.csv"
+glup__globdir="$(dirname "$(readlink -f "$0")")"
+glup__hashfile="$glup__globdir/.glup.csv"
 if [ ! -e "$glup__hashfile" ]; then
 	echo "sha256,shaUrbit" >> "$glup__hashfile"
 fi
@@ -111,10 +112,11 @@ if [ "$glup_type" = "prod" ]; then
 fi
 
 glup__reponame="$(git -C "$glup_base" remote -v | awk '/\(fetch\)$/ {print $2;}' | sed -re 's|.*:(.*)\.git$|\1|')"
+glup__globrpath="$(realpath --relative-to "$glup_base" "$glup__globdir")"
 glup__repourl=""
 case $glup_type in
 	dbug) glup__repourl="http://127.0.0.1:8000/$glup__filename" ;;
-	*) glup__repourl="https://raw.githubusercontent.com/$glup__reponame/$glup__vername/meta/glob/$glup__filename" ;;
+	*) glup__repourl="https://raw.githubusercontent.com/$glup__reponame/$glup__vername/$glup__globrpath/$glup__filename" ;;
 esac
 
 # TODO: Verify that these commands succeeded and error out with a helpful
@@ -126,7 +128,7 @@ done
 
 echo "deployed! run these follow commands for testing/deployment:"
 case $glup_type in
-	dbug) echo "cd $glup_base/meta/glob && python3 -m http.server 8000" ;;
+	dbug) echo "cd $glup_base/$glup__globrpath && python3 -m http.server 8000" ;;
 	*)
 		echo "git -C $glup_base add --all ."
 		echo "git -C $glup_base commit -m \"update to version $glup__vername\""
