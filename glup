@@ -11,7 +11,7 @@
 
 ## Constants ##
 
-GLUP_VERSION="0.0.2"
+GLUP_VERSION="0.0.3"
 GLUP_FOOTER="
 Report bugs to: ~sidnym-ladrut
 home page: <https://github.com/sidnym-ladrut/geur>"
@@ -26,9 +26,9 @@ Flag arguments:
   -b, --base-path: The base path for the desk source
     (default: innermost git root directory containing this script file)
   -t, --type: The strategy for the update; one of:
-    dbug: private & local update (for fast iteration/local testing)
+    dbug (default): private & local update (for fast iteration/local testing)
     test: public & interrim update (for shared/communal testing)
-    prod (default): public & final update
+    prod: public & final update
 $GLUP_FOOTER"
 GLUP_VERSION_REGEX="([[:digit:]]+)\.([[:digit:]]+)\.([[:digit:]]+)"
 GLUP_TYPE_REGEX="((prod)|(test)|(dbug))"
@@ -50,7 +50,7 @@ if [ "2" != "$#" ]; then
 	printf "%s\\n" "$GLUP_HELP" && exit 1
 fi
 
-[ -z "$glup_type" ] && glup_type="prod"
+[ -z "$glup_type" ] && glup_type="dbug"
 if ! echo "$glup_type" | grep -qE "$GLUP_TYPE_REGEX"; then
 	printf "invalid update type: %s\\n" "$glup_type" && exit 1
 fi
