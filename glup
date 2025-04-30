@@ -1,0 +1,139 @@
+#!/bin/bash
+
+# TODO:
+# - Add code to change the name of a glob to the version name when we have a
+#   method for recovering the Urbit hash for an arbitrary glob file in Unix.
+#   > For glob (i.e. `(map path mime)`) `g`, this is: `(shaf %sham (jam g))`,
+#     which is a "half sha-256" sum with an injected "%sham" salt of the
+#     number represented by `g` as a path map.
+#   > Since `map` and `jam` are used in this operation, an Urbit ship basically
+#     needs to be leveraged in order to calculate this glob hash.
+
+## Constants ##
+
+GLUP_VERSION="0.0.1"
+GLUP_FOOTER="
+Report bugs to: ~sidnym-ladrut
+home page: <https://github.com/sidnym-ladrut/geur>"
+GLUP_HELP_BASE="usage: glup [-h | --help] [-v | --version]
+            ([-b | --base-path] <base-path>) ([-t | --type] <type>)
+            <version> <glob-path>
+gl(ob) up(date): perform a versioned desk update of a particular glob
+
+Flag arguments:
+  -h, --help: Show this help message
+  -v, --version: Show the software version
+  -b, --base-path: The base path for the desk source
+    (default: innermost git root directory containing this script file)
+  -t, --type: The strategy for the update; one of:
+    dbug: private & local update (for fast iteration/local testing)
+    test: public & interrim update (for shared/communal testing)
+    prod (default): public & final update
+$GLUP_FOOTER"
+GLUP_VERSION_REGEX="([[:digit:]]+)\.([[:digit:]]+)\.([[:digit:]]+)"
+GLUP_TYPE_REGEX="((prod)|(test)|(dbug))"
+
+## Helper Functions ##
+
+## Arguments ##
+
+while : ; do case $1 in
+	-h | --help) printf "%s\\n" "$GLUP_HELP_BASE" && exit 1 ;;
+	-v | --version) printf "%s\\n" "$GLUP_VERSION" && exit 1 ;;
+	-b | --base-path) glup_base=$2 && shift 2 ;;
+	-t | --type) glup_type=$2 && shift 2 ;;
+	-*) printf "invalid option: %s\\n" "$1" && exit 1 ;;
+	*) break ;;
+esac done
+
+if [ "2" != "$#" ]; then
+	printf "%s\\n" "$GLUP_HELP" && exit 1
+fi
+
+[ -z "$glup_type" ] && glup_type="prod"
+if ! echo "$glup_type" | grep -qE "$GLUP_TYPE_REGEX"; then
+	printf "invalid update type: %s\\n" "$glup_type" && exit 1
+fi
+
+[ -z "$glup_base" ] && glup_base="$(git rev-parse --show-toplevel)"
+if [ ! -d "$glup_base" ]; then
+	printf "invalid base path: %s\\n" "$glup_base" && exit 1
+fi
+
+glup_version="$1"
+if ! echo "$glup_version" | grep -qE "$GLUP_VERSION_REGEX"; then
+	printf "invalid version string: %s\\n" "$glup_version" && exit 1
+fi
+glup__hoonver="$glup_version//./ "
+
+glup_globpath="$2"
+if [ ! -f "$glup_globpath" ]; then
+	printf "bad glob file at path: %s\\n" "$glup_globpath" && exit 1
+fi
+glup__hashfile="$(dirname "$(readlink -f "$0")")/.glup.csv"
+if [ ! -e "$glup__hashfile" ]; then
+	echo "sha256,shaUrbit" >> "$glup__hashfile"
+fi
+if [ ! -f "$glup__hashfile" ]; then
+	printf "bad glup cache file at path: %s\\n" "$glup__hashfile" && exit 1
+fi
+glup__globsha256="$(sha256sum "$glup_globpath" | awk 'print $1')"
+glup__globshaurb="$(awk -F ',' -v sha="$glup__globsha256" '$1 == sha print $2' < "$glup__hashfile")"
+if [ -z "$glup__globshaurb" ]; then
+	glup__globname="$(basename "$(readlink -f "$glup_globpath")")"
+	if echo "$glup__globname" | grep -qE "^glob-(.*)\.glob$"; then
+		glup__globshaurb="$(echo "$glup__globname" | sed -re "s/^glob-(.*)\.glob$/\1/")"
+		echo "$glup__globsha256,$glup__globshaurb" >> "$glup__hashfile"
+	else
+		printf "couldn't find urbit hash for glob file: %s\\n" "$glup_globpath" && exit 1
+	fi
+fi
+
+## Processing ##
+
+glup__vername=""
+case $glup_type in
+	prod) glup__vername="v$glup_version" ;;
+	dbug) glup__vername="v$glup_version-dbg" ;;
+	test)
+		glup__latest="$(find "$(dirname "$(readlink -f "$glup_globpath")")" \
+			-maxdepth 1 -name "v$glup_version-rc*.glob" \
+			| sed -re "s/.*-rc([[:digit:]]+)\.glob/\1/" \
+			| sort -g | tail -1)"
+		glup__vername="v$glup_version-rc$((glup__latest+1))"
+		;;
+esac
+glup__filename="$glup__vername.glob"
+mv "$glup_globpath" "$(dirname "$(readlink -f "$glup_globpath")")/$glup__filename"
+if [ "$glup_type" = "prod" ]; then
+	# shellcheck disable=SC2046,SC2086
+	rm -f $(dirname "$(readlink -f "$glup_globpath")")/$glup__vername-rc*.glob
+fi
+
+glup__reponame="$(git -C "$glup_base" remote -v | awk '/\(fetch\)$/ print $2;' | sed -re 's|.*:(.*)\.git$|\1|')"
+glup__repourl=""
+case $glup_type in
+	dbug) glup__repourl="http://127.0.0.1:8000/$glup__filename" ;;
+	*) glup__repourl="https://raw.githubusercontent.com/$glup__reponame/$glup__vername/meta/glob/$glup__filename" ;;
+esac
+
+# TODO: Verify that these commands succeeded and error out with a helpful
+# message if they did not.
+for glup__docket in $(git ls-files | grep "desk\.docket-0$"); do
+	sed -r "s|([[:space:]]+glob-http\+\[).*(\].*)|\1\'$glup__repourl\' $glup__globshaurb\2|" -i "$glup__docket"
+	sed -r "s|([[:space:]]+version\+\[).*(\].*)|\1$glup__hoonver\2|" -i "$glup__docket"
+done
+
+echo "deployed! run these follow commands for testing/deployment:"
+case $glup_type in
+	dbug) echo "cd $glup_base/meta/glob && python3 -m http.server 8000" ;;
+	*)
+		echo "git -C $glup_base add --all ."
+		echo "git -C $glup_base commit -m \"update to version $glup__vername\""
+		echo "git -C $glup_base tag $glup__vername"
+		if [ "$glup_type" = "prod" ]; then
+			echo "git -C $glup_base tag -d $glup__vername-rc*"
+		fi
+		echo "git -C $glup_base push --tags origin HEAD"
+		;;
+esac
