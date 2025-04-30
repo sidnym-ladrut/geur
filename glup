@@ -11,7 +11,7 @@
 
 ## Constants ##
 
-GLUP_VERSION="0.0.1"
+GLUP_VERSION="0.0.2"
 GLUP_FOOTER="
 Report bugs to: ~sidnym-ladrut
 home page: <https://github.com/sidnym-ladrut/geur>"
@@ -64,7 +64,7 @@ glup_version="$1"
 if ! echo "$glup_version" | grep -qE "$GLUP_VERSION_REGEX"; then
 	printf "invalid version string: %s\\n" "$glup_version" && exit 1
 fi
-glup__hoonver="$glup_version//./ "
+glup__hoonver="${glup_version//./ }"
 
 glup_globpath="$2"
 if [ ! -f "$glup_globpath" ]; then
@@ -77,8 +77,8 @@ fi
 if [ ! -f "$glup__hashfile" ]; then
 	printf "bad glup cache file at path: %s\\n" "$glup__hashfile" && exit 1
 fi
-glup__globsha256="$(sha256sum "$glup_globpath" | awk 'print $1')"
-glup__globshaurb="$(awk -F ',' -v sha="$glup__globsha256" '$1 == sha print $2' < "$glup__hashfile")"
+glup__globsha256="$(sha256sum "$glup_globpath" | awk '{print $1}')"
+glup__globshaurb="$(awk -F ',' -v sha="$glup__globsha256" '$1 == sha {print $2}' < "$glup__hashfile")"
 if [ -z "$glup__globshaurb" ]; then
 	glup__globname="$(basename "$(readlink -f "$glup_globpath")")"
 	if echo "$glup__globname" | grep -qE "^glob-(.*)\.glob$"; then
@@ -110,7 +110,7 @@ if [ "$glup_type" = "prod" ]; then
 	rm -f $(dirname "$(readlink -f "$glup_globpath")")/$glup__vername-rc*.glob
 fi
 
-glup__reponame="$(git -C "$glup_base" remote -v | awk '/\(fetch\)$/ print $2;' | sed -re 's|.*:(.*)\.git$|\1|')"
+glup__reponame="$(git -C "$glup_base" remote -v | awk '/\(fetch\)$/ {print $2;}' | sed -re 's|.*:(.*)\.git$|\1|')"
 glup__repourl=""
 case $glup_type in
 	dbug) glup__repourl="http://127.0.0.1:8000/$glup__filename" ;;
