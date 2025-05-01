@@ -2,7 +2,7 @@
 
 ## Constants ##
 
-SLUP_VERSION="0.0.1"
+SLUP_VERSION="0.0.2"
 SLUP_FOOTER="
 Report bugs to: ~sidnym-ladrut
 home page: <https://github.com/sidnym-ladrut/geur>"
@@ -54,7 +54,7 @@ for slup__docket in $(git ls-files | grep "desk\.docket-0$"); do
 	sed -r "s|([[:space:]]+version\+\[).*(\].*)|\1${slup__hoonver}\2|" -i "${slup__docket}"
 	slup__docketdir="$(dirname "$slup__docket")"
 	find "${slup__docketdir}" -type f -name "*.hoon" \
-		-exec sh -c "sed '/^::  RELOAD$/d' -i $1" sh {} \;
+		-exec sh -c "sed '/^::  RELOAD$/d' -i \$1" sh {} \;
 	find "${slup__docketdir}" -type f -name "*.hoon" \
-		-exec sh -c "sed -r '/(^::  VERSION: ).*$/\1[${slup__hoonver}]/' -i $1" sh {} \;
+		-exec sh -c "sed -re 's/(^::  VERSION: ).*$/\1[${slup__hoonver}]/' -i \$1" sh {} \;
 done
