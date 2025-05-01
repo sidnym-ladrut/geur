@@ -1,0 +1,60 @@
+#!/bin/bash
+
+## Constants ##
+
+SLUP_VERSION="0.0.1"
+SLUP_FOOTER="
+Report bugs to: ~sidnym-ladrut
+home page: <https://github.com/sidnym-ladrut/geur>"
+SLUP_HELP_BASE="usage: slup [-h | --help] [-v | --version]
+            ([-b | --base-path] <base-path>)
+            <version>
+s(ai)l up(date): perform a versioned desk update for a sail ui
+
+Flag arguments:
+  -h, --help: Show this help message
+  -v, --version: Show the software version
+  -b, --base-path: The base path for the desk source
+    (default: innermost git root directory containing this script file)
+$SLUP_FOOTER"
+SLUP_VERSION_REGEX="([[:digit:]]+)\.([[:digit:]]+)\.([[:digit:]]+)"
+
+## Helper Functions ##
+
+## Arguments ##
+
+while : ; do case $1 in
+	-h | --help) printf "%s\\n" "$SLUP_HELP_BASE" && exit 1 ;;
+	-v | --version) printf "%s\\n" "$SLUP_VERSION" && exit 1 ;;
+	-b | --base-path) slup_base=$2 && shift 2 ;;
+	-*) printf "invalid option: %s\\n" "$1" && exit 1 ;;
+	*) break ;;
+esac done
+
+if [ "1" != "$#" ]; then
+	printf "%s\\n" "$SLUP_HELP" && exit 1
+fi
+
+[ -z "$slup_base" ] && slup_base="$(git rev-parse --show-toplevel)"
+if [ ! -d "$slup_base" ]; then
+	printf "invalid base path: %s\\n" "$slup_base" && exit 1
+fi
+
+slup_version="$1"
+if ! echo "$slup_version" | grep -qE "$SLUP_VERSION_REGEX"; then
+	printf "invalid version string: %s\\n" "$slup_version" && exit 1
+fi
+slup__hoonver="${slup_version//./ }"
+
+## Processing ##
+
+for slup__docket in $(git ls-files | grep "desk\.docket-0$"); do
+	# TODO: Verify that these commands succeeded and error out with a helpful
+	# message if they did not.
+	sed -r "s|([[:space:]]+version\+\[).*(\].*)|\1${slup__hoonver}\2|" -i "${slup__docket}"
+	slup__docketdir="$(dirname "$slup__docket")"
+	find "${slup__docketdir}" -type f -name "*.hoon" \
+		-exec sh -c "sed '/^::  RELOAD$/d' -i $1" sh {} \;
+	find "${slup__docketdir}" -type f -name "*.hoon" \
+		-exec sh -c "sed -r '/(^::  VERSION: ).*$/\1[${slup__hoonver}]/' -i $1" sh {} \;
+done

@@ -119,9 +119,12 @@ case $glup_type in
 	*) glup__repourl="https://raw.githubusercontent.com/$glup__reponame/$glup__vername/$glup__globrpath/$glup__filename" ;;
 esac
 
-# TODO: Verify that these commands succeeded and error out with a helpful
-# message if they did not.
+# FIXME: If the current desk.docket-0 file isn't tracked by git, this will fail.
+# This logic should be 'all desk.docket-0 files in the tree not ignored by git'
+# instead.
 for glup__docket in $(git ls-files | grep "desk\.docket-0$"); do
+	# TODO: Verify that these commands succeeded and error out with a helpful
+	# message if they did not.
 	sed -r "s|([[:space:]]+glob-http\+\[).*(\].*)|\1\'$glup__repourl\' $glup__globshaurb\2|" -i "$glup__docket"
 	sed -r "s|([[:space:]]+version\+\[).*(\].*)|\1$glup__hoonver\2|" -i "$glup__docket"
 done
