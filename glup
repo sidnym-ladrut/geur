@@ -11,7 +11,7 @@
 
 ## Constants ##
 
-GLUP_VERSION="0.0.4"
+GLUP_VERSION="0.0.5"
 GLUP_FOOTER="
 Report bugs to: ~sidnym-ladrut
 home page: <https://github.com/sidnym-ladrut/geur>"
@@ -70,8 +70,7 @@ glup_globpath="$2"
 if [ ! -f "$glup_globpath" ]; then
 	printf "bad glob file at path: %s\\n" "$glup_globpath" && exit 1
 fi
-glup__globdir="$(dirname "$(readlink -f "$0")")"
-glup__hashfile="$glup__globdir/.glup.csv"
+glup__hashfile="$(dirname "$(readlink -f "$0")")/.glup.csv"
 if [ ! -e "$glup__hashfile" ]; then
 	echo "sha256,shaUrbit" >> "$glup__hashfile"
 fi
@@ -112,7 +111,7 @@ if [ "$glup_type" = "prod" ]; then
 fi
 
 glup__reponame="$(git -C "$glup_base" remote -v | awk '/\(fetch\)$/ {print $2;}' | sed -re 's|.*:(.*)\.git$|\1|')"
-glup__globrpath="$(realpath --relative-to "$glup_base" "$glup__globdir")"
+glup__globrpath="$(realpath --relative-to "$glup_base" "$(dirname "$(readlink -f "$glup_globpath")")")"
 glup__repourl=""
 case $glup_type in
 	dbug) glup__repourl="http://127.0.0.1:8000/$glup__filename" ;;
